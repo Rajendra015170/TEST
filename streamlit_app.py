@@ -3,344 +3,185 @@ from snowflake.snowpark.context import get_active_session
 import pandas as pd
 import time
 
-# Set page config for better layout
-st.set_page_config(
-    page_title="ZDC Data Governance Platform",
-    page_icon="🛡️",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# Enhanced CSS for professional styling
+# Enhanced Custom CSS for modern styling
 st.markdown(
     """
     <style>
-    /* Import modern fonts */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-    
-    /* Global app styling */
+    /* Main background and theme */
     .stApp {
-        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-        font-family: 'Inter', sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     }
     
-    /* Main container with professional styling */
     .main .block-container {
         padding-top: 2rem;
         padding-bottom: 2rem;
-        padding-left: 3rem;
-        padding-right: 3rem;
-        max-width: 1400px;
-        background: white;
-        border-radius: 20px;
-        margin: 1rem auto;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-    }
-    
-    /* Enhanced typography */
-    .app-title {
-        font-size: 3.5rem;
-        font-family: 'Inter', sans-serif;
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        text-align: center;
-        font-weight: 700;
-        margin-bottom: 2rem;
-        letter-spacing: -1px;
-    }
-    
-    .section-header {
-        font-size: 2.5rem;
-        color: #2c3e50;
-        font-weight: 600;
-        margin: 2rem 0 1.5rem 0;
-        padding-bottom: 0.8rem;
-        border-bottom: 3px solid #667eea;
-        position: relative;
-    }
-    
-    .section-header::after {
-        content: '';
-        position: absolute;
-        bottom: -3px;
-        left: 0;
-        width: 60px;
-        height: 3px;
-        background: #764ba2;
-    }
-    
-    .subsection-header {
-        font-size: 1.6rem;
-        color: #34495e;
-        font-weight: 500;
-        margin: 2rem 0 1rem 0;
-        padding-left: 1rem;
-        border-left: 4px solid #667eea;
-    }
-    
-    /* Sidebar styling with better contrast */
-    .sidebar .sidebar-content {
-        background: linear-gradient(180deg, #2c3e50 0%, #34495e 100%);
-        color: white;
+        background: rgba(255, 255, 255, 0.95);
         border-radius: 15px;
-        padding: 1rem;
+        margin: 1rem;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Typography */
+    .font {
+        font-size: 36px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        color: #2C3E50;
+        text-transform: uppercase;
+        font-weight: 700;
+        text-align: center;
+        margin-bottom: 2rem;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
     }
     
-    /* Enhanced selectbox styling for better visibility */
-    .stSelectbox > div > div {
-        background-color: white !important;
-        border: 2px solid #e1e8ed !important;
-        border-radius: 12px !important;
-        padding: 0.5rem !important;
-        transition: all 0.3s ease !important;
-        color: #2c3e50 !important;
-        font-weight: 500 !important;
+    h1, h2, h3 {
+        color: #34495E;
+        font-family: 'Segoe UI', sans-serif;
+    }
+
+    /* Sidebar styling */
+    .css-1d391kg {
+        background: linear-gradient(180deg, #3498db 0%, #2980b9 100%);
     }
     
-    .stSelectbox > div > div:hover {
-        border-color: #667eea !important;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
-        transform: translateY(-1px) !important;
+    .sidebar .sidebar-content {
+        background: linear-gradient(180deg, #3498db 0%, #2980b9 100%);
+        color: white;
     }
     
-    .stSelectbox > div > div:focus-within {
-        border-color: #667eea !important;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15) !important;
+    .css-17eq0hr {
+        color: white !important;
     }
-    
-    /* Multiselect styling */
-    .stMultiSelect > div > div {
-        background-color: white !important;
-        border: 2px solid #e1e8ed !important;
-        border-radius: 12px !important;
-        color: #2c3e50 !important;
-    }
-    
-    .stMultiSelect > div > div:focus-within {
-        border-color: #667eea !important;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15) !important;
-    }
-    
-    /* Radio button styling */
-    .stRadio > div {
-        background-color: rgba(255, 255, 255, 0.95) !important;
-        border-radius: 12px !important;
-        padding: 1rem !important;
-        margin: 0.5rem 0 !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-    }
-    
-    .stRadio > div:hover {
-        background-color: rgba(255, 255, 255, 1) !important;
-    }
-    
+
     /* Enhanced button styling */
     .stButton button {
-        background: linear-gradient(135deg, #667eea, #764ba2) !important;
-        color: white !important;
-        padding: 0.8rem 2rem !important;
-        border-radius: 25px !important;
-        font-size: 16px !important;
-        font-weight: 600 !important;
-        border: none !important;
-        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3) !important;
-        transition: all 0.3s ease !important;
-        margin: 8px 4px !important;
-        text-transform: uppercase !important;
-        letter-spacing: 0.5px !important;
+        background: linear-gradient(45deg, #3498db, #2980b9);
+        color: white;
+        padding: 12px 24px;
+        border-radius: 25px;
+        font-size: 16px;
+        font-weight: 600;
+        margin: 8px 4px;
+        border: none;
+        box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+        transition: all 0.3s ease;
     }
-    
+
     .stButton button:hover {
-        transform: translateY(-3px) !important;
-        box-shadow: 0 12px 35px rgba(102, 126, 234, 0.4) !important;
-        background: linear-gradient(135deg, #5a6fd8, #6a4c93) !important;
+        background: linear-gradient(45deg, #2980b9, #1a6695);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+    }
+
+    /* Selectbox styling */
+    .stSelectbox > div > div {
+        background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+        color: white;
+        border-radius: 10px;
+        border: 2px solid #74b9ff;
     }
     
-    .stButton button:active {
-        transform: translateY(-1px) !important;
+    .stSelectbox > div > div > div {
+        color: white;
+    }
+
+    /* Multiselect styling */
+    .stMultiSelect > div > div {
+        background: linear-gradient(135deg, #a29bfe 0%, #6c5ce7 100%);
+        border-radius: 10px;
+        border: 2px solid #a29bfe;
+    }
+
+    /* Text input styling */
+    .stTextInput > div > div > input {
+        background: linear-gradient(135deg, #fd79a8 0%, #e84393 100%);
+        color: white;
+        border-radius: 10px;
+        border: 2px solid #fd79a8;
     }
     
-    /* Success and error messages */
+    .stTextInput > div > div > input::placeholder {
+        color: rgba(255, 255, 255, 0.7);
+    }
+
+    /* Data editor styling */
+    .stDataFrame {
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Success/Error message styling */
     .stSuccess {
-        background: linear-gradient(135deg, #d4edda, #c3e6cb) !important;
-        border: none !important;
-        border-radius: 15px !important;
-        padding: 1rem !important;
-        margin: 1rem 0 !important;
-        border-left: 5px solid #28a745 !important;
+        background: linear-gradient(135deg, #00b894 0%, #00a085 100%);
+        border-radius: 10px;
+        padding: 1rem;
+        border-left: 5px solid #00b894;
     }
     
     .stError {
-        background: linear-gradient(135deg, #f8d7da, #f5c6cb) !important;
-        border: none !important;
-        border-radius: 15px !important;
-        padding: 1rem !important;
-        margin: 1rem 0 !important;
-        border-left: 5px solid #dc3545 !important;
+        background: linear-gradient(135deg, #e17055 0%, #d63031 100%);
+        border-radius: 10px;
+        padding: 1rem;
+        border-left: 5px solid #e17055;
     }
     
     .stWarning {
-        background: linear-gradient(135deg, #fff3cd, #ffeaa7) !important;
-        border: none !important;
-        border-radius: 15px !important;
-        padding: 1rem !important;
-        margin: 1rem 0 !important;
-        border-left: 5px solid #ffc107 !important;
+        background: linear-gradient(135deg, #fdcb6e 0%, #e17055 100%);
+        border-radius: 10px;
+        padding: 1rem;
+        border-left: 5px solid #fdcb6e;
     }
     
-    /* Data editor styling */
-    .stDataFrame, .stDataEditor {
-        border-radius: 15px !important;
-        overflow: hidden !important;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08) !important;
-        border: 1px solid #e1e8ed !important;
+    .stInfo {
+        background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+        border-radius: 10px;
+        padding: 1rem;
+        border-left: 5px solid #74b9ff;
+    }
+
+    /* Statistics cards */
+    .stat-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 1.5rem;
+        border-radius: 15px;
+        margin: 0.5rem;
+        color: white;
+        text-align: center;
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
     }
     
-    /* Card-like containers */
-    .info-card {
-        background: white;
-        padding: 2.5rem;
-        border-radius: 20px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-        margin: 1.5rem 0;
-        border-left: 5px solid #667eea;
-        transition: all 0.3s ease;
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
     }
     
-    .info-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
+    .stat-label {
+        font-size: 1rem;
+        opacity: 0.9;
     }
     
-    .info-card h3 {
-        color: #2c3e50;
+    /* Filter section */
+    .filter-section {
+        background: rgba(116, 185, 255, 0.1);
+        padding: 1rem;
+        border-radius: 10px;
         margin-bottom: 1rem;
-        font-weight: 600;
-    }
-    
-    .info-card h4 {
-        color: #34495e;
-        margin-bottom: 0.8rem;
-        font-weight: 500;
-    }
-    
-    /* Progress indicators */
-    .stProgress > div > div {
-        background: linear-gradient(135deg, #667eea, #764ba2) !important;
-        border-radius: 10px !important;
+        border: 1px solid rgba(116, 185, 255, 0.3);
     }
     
     /* Auto-save indicator */
     .auto-save-indicator {
         position: fixed;
-        top: 80px;
-        right: 30px;
-        background: linear-gradient(135deg, #28a745, #20c997);
+        top: 10px;
+        right: 10px;
+        background: #00b894;
         color: white;
-        padding: 12px 20px;
-        border-radius: 25px;
-        font-size: 14px;
-        font-weight: 500;
-        z-index: 1000;
-        box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
-        animation: slideIn 0.3s ease;
-    }
-    
-    @keyframes slideIn {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-    }
-    
-    /* Enhanced metrics */
-    .metric-card {
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        color: white;
-        padding: 2rem;
+        padding: 8px 16px;
         border-radius: 20px;
-        text-align: center;
-        margin: 0.5rem;
-        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
-        transition: all 0.3s ease;
-    }
-    
-    .metric-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 15px 40px rgba(102, 126, 234, 0.4);
-    }
-    
-    .metric-value {
-        font-size: 2.5rem;
-        font-weight: 700;
-        margin-bottom: 0.5rem;
-    }
-    
-    .metric-label {
-        font-size: 1rem;
-        opacity: 0.9;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-    
-    /* Navigation styling */
-    .nav-card {
-        background: white;
-        padding: 1.5rem;
-        border-radius: 15px;
-        margin: 0.5rem 0;
-        border: 2px solid transparent;
-        transition: all 0.3s ease;
-        cursor: pointer;
-    }
-    
-    .nav-card:hover {
-        border-color: #667eea;
-        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
-        transform: translateY(-2px);
-    }
-    
-    /* Expander styling */
-    .streamlit-expanderHeader {
-        background: linear-gradient(135deg, #f8f9fa, #e9ecef) !important;
-        border-radius: 12px !important;
-        font-weight: 600 !important;
-        color: #2c3e50 !important;
-    }
-    
-    /* Spinner styling */
-    .stSpinner > div {
-        border-color: #667eea transparent transparent transparent !important;
-    }
-    
-    /* Column spacing */
-    .row-widget.stHorizontal {
-        gap: 2rem;
-    }
-    
-    /* Hide streamlit branding */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    
-    /* Custom scrollbar */
-    ::-webkit-scrollbar {
-        width: 8px;
-    }
-    
-    ::-webkit-scrollbar-track {
-        background: #f1f1f1;
-        border-radius: 10px;
-    }
-    
-    ::-webkit-scrollbar-thumb {
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        border-radius: 10px;
-    }
-    
-    ::-webkit-scrollbar-thumb:hover {
-        background: linear-gradient(135deg, #5a6fd8, #6a4c93);
+        font-size: 12px;
+        z-index: 1000;
+        box-shadow: 0 2px 10px rgba(0, 184, 148, 0.3);
     }
     </style>
     """,
@@ -463,7 +304,7 @@ app_mode = st.sidebar.radio(
 
 # Home Page with enhanced design
 if app_mode == "🏠 Home":
-    st.markdown('<h1 class="app-title">Welcome to the ZDC Platform</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="font">Welcome to the ZDC Platform</h1>', unsafe_allow_html=True)
     
     st.markdown("""
     <div style="text-align: center; margin: 2rem 0; padding: 2rem; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 20px; color: white;">
@@ -1103,36 +944,36 @@ elif app_mode == "📊 Classifications":
                 with col1:
                     total_records = len(edited_df)
                     st.markdown(f"""
-                    <div class="metric-card">
-                        <div class="metric-value">{total_records}</div>
-                        <div class="metric-label">Total Records</div>
+                    <div class="stat-card">
+                        <div class="stat-number">{total_records}</div>
+                        <div class="stat-label">Total Records</div>
                     </div>
                     """, unsafe_allow_html=True)
                 
                 with col2:
                     approved_count = len(edited_df[edited_df['BU_APPROVAL_STATUS'] == 'APPROVED'])
                     st.markdown(f"""
-                    <div class="metric-card">
-                        <div class="metric-value">{approved_count}</div>
-                        <div class="metric-label">Approved</div>
+                    <div class="stat-card">
+                        <div class="stat-number">{approved_count}</div>
+                        <div class="stat-label">Approved</div>
                     </div>
                     """, unsafe_allow_html=True)
                 
                 with col3:
                     mask_count = len(edited_df[edited_df['BU_APPROVAL_STATUS'] == 'MASK'])
                     st.markdown(f"""
-                    <div class="metric-card">
-                        <div class="metric-value">{mask_count}</div>
-                        <div class="metric-label">To Mask</div>
+                    <div class="stat-card">
+                        <div class="stat-number">{mask_count}</div>
+                        <div class="stat-label">To Mask</div>
                     </div>
                     """, unsafe_allow_html=True)
                 
                 with col4:
                     no_mask_count = len(edited_df[edited_df['BU_APPROVAL_STATUS'] == 'NO MASKING NEEDED'])
                     st.markdown(f"""
-                    <div class="metric-card">
-                        <div class="metric-value">{no_mask_count}</div>
-                        <div class="metric-label">No Masking</div>
+                    <div class="stat-card">
+                        <div class="stat-number">{no_mask_count}</div>
+                        <div class="stat-label">No Masking</div>
                     </div>
                     """, unsafe_allow_html=True)
 
