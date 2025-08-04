@@ -1112,6 +1112,248 @@ elif app_mode == "🔒 Snowflake Masking":
             # Log audit (assuming your log_audit function is defined)
             log_audit("Validation process completed.", "SUCCESS", "masking_validation")
                     
+elif app_mode == "🔐 Snowflake Encryption":
+    session = get_active_session()
+
+    # Navigation buttons for the encryption process
+    app_mode_encryption = st.sidebar.radio("Select Process", [
+        "Home",
+        "ENCRYPTION"
+    ], index=0)
+
+    # Home page for Snowflake Encryption app
+    if app_mode_encryption == "Home":
+        st.markdown('<h2 class="font">🔐 Snowflake Encryption App</h2>', unsafe_allow_html=True)
+        st.markdown(
+            '<p>This application is designed to assist you with data encryption in Snowflake. '
+            'Please follow each step to encrypt Snowflake schemas.</p>', unsafe_allow_html=True
+        )
+
+       # Overview of processes
+        st.subheader('🔄 Overview of Processes:')
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #fff9e6 0%, #ffe066 100%); padding: 2rem; border-radius: 15px; margin: 1rem 0;">
+            <strong>ENCRYPTION:</strong><br>
+            This application enables you to encrypt Snowflake schema tables. You need to select the database and schema you wish to encrypt. Additionally, you must choose the target environment where the encrypted tables will be deployed. 
+            All encrypted databases will have a `_ENCRYPT` suffix, e.g., `DEV_DATALAKE_ENCRYPT`
+        </div>
+        """, unsafe_allow_html=True)
+
+         # Limitations & Workarounds
+        st.subheader('⚠️ Limitations & Workarounds:')
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #ffe6e6 0%, #ffb3b3 100%); padding: 1.5rem; border-radius: 10px; margin: 1rem 0;">
+            <strong>JOINS USING ENCRYPTED COLUMNS:</strong><br>
+            Tables can be joined using encrypted columns. Join columns must be encrypted using the same <strong>KEY</strong>, <strong>TWEAK</strong>, and <strong>ALPHABET</strong>.
+            <br><br>
+            <strong>SINGLE/MULTIPOINT SEARCHES:</strong><br>
+            Search values should be encrypted using the same <strong>KEY</strong>, <strong>TWEAK</strong>, and <strong>ALPHABET</strong>.
+        </div>
+        """, unsafe_allow_html=True)
+
+    # Encryption process
+    elif app_mode_encryption == "ENCRYPTION":
+        session = get_active_session()
+
+        import re
+    # Then select Source Database
+        def get_databases(env):
+            db_prefix = f"{env}_"
+            db_query = f"""
+            SELECT DATABASE_NAME
+            FROM INFORMATION_SCHEMA.DATABASES
+            WHERE DATABASE_NAME LIKE '{db_prefix}%'
+            AND DATABASE_NAME NOT LIKE '%_MASKED%' AND DATABASE_NAME NOT LIKE '%_ENCRYPT%'
+            """
+            rows = session.sql(db_query).collect()
+            return [row[0] for row in rows]
+
+        # Function to fetch schemas for a specific database
+        def get_schemas(database_name):
+            if not database_name:
+                return []
+            schema_query = f"SELECT SCHEMA_NAME FROM {database_name}.INFORMATION_SCHEMA.SCHEMATA"
+            rows = session.sql(schema_query).collect()
+            return [row[0] for row in rows]
+
+        # Function to fetch distinct BU names based on environment
+        def get_bu_names(env):
+            bu_query = f"SELECT DISTINCT BU_NAME FROM {env}_DB_MANAGER.MASKING.CONSUMER"
+            try:
+                rows = session.sql(bu_query).collect()
+                return [row[0] for row in rows]
+            except Exception as e:
+                st.warning(f"Could not fetch BU names for environment {env}: {e}")
+                return []
+
+        # Input selections for masking environment
+        encryption_environment = st.selectbox("🌍 Encryption Environment", ["DEV", "QA", "UAT", "PROD"])
+
+        # Get databases based on the selected environment
+        masking_database_list = get_databases(encryption_environment)
+        selected_masking_database = st.selectbox("📊 Database", masking_database_list)
+
+        masking_schema_list = []
+        selected_masking_schema = None
+        if selected_masking_database:
+            masking_schema_list = get_schemas(selected_masking_database)
+            selected_masking_schema = st.selectbox("📁 Schema", masking_schema_list)
+
+        # Determine selected_classification_database based on selected_masking_database
+        selected_classification_database = None
+        if selected_masking_database:
+            # Split the database name by '_' and take the part after the environment prefix
+            db_suffix = selected_masking_database.split('_', 1)[-1]
+            selected_classification_database = f"PROD_{db_suffix}" # Always point to PROD
+
+        # Keep selected_classification_schema the same as selected_masking_schema
+        selected_classification_schema = selected_masking_schema
+
+        # Get BU names based on the selected environment
+        bu_name_list = get_bu_names(encryption_environment)
+        selected_bu_name = st.selectbox("🏢 BU Name", bu_name_list)
+
+        # Get classification owner based on the new query criteria
+        classification_owner_list = []
+        if selected_classification_database and selected_classification_schema:
+            owner_query = f"""
+            WITH latest_import AS (
+              SELECT MAX(import_id) AS max_id
+              FROM DEV_DB_MANAGER.MASKING.RAW_CLASSIFICATION_DETAILS
+              WHERE database_name = '{selected_classification_database}'
+              AND schema_name = '{selected_classification_schema}'
+            )
+            SELECT DISTINCT classification_owner
+            FROM DEV_DB_MANAGER.MASKING.RAW_CLASSIFICATION_DETAILS
+            WHERE database_name = '{selected_classification_database}'
+              AND schema_name = '{selected_classification_schema}'
+              AND import_id = (SELECT max_id FROM latest_import);
+            """
+            try:
+                rows = session.sql(owner_query).collect()
+                classification_owner_list = [row[0] for row in rows]
+            except Exception as e:
+                st.warning(f"Could not fetch classification owner: {e}")
+                classification_owner_list = []
+
+        # Use classification owner from query results or fallback to "ALTR"
+        selected_classification_owner = classification_owner_list[0] if classification_owner_list else "ALTR"
+
+        # Button to execute all the masking processes
+        if st.button("🚀 Run Encryption"):
+            if (selected_masking_database and selected_masking_schema and
+                selected_bu_name and selected_classification_database and selected_classification_schema):
+
+                # Track success of all operations
+                success = True
+
+                # Execute each process in sequence
+                if selected_classification_owner == "ALTR":
+                    try:
+                        # Execute ALTR MAPPER
+                        sql_command = f"""
+                        CALL ALTR_DSAAS_DB.PUBLIC.ALTR_TAG_MAPPER(
+                            MAPPING_FILE_PATH => BUILD_SCOPED_FILE_URL(@ALTR_DSAAS_DB.PUBLIC.ALTR_TAG_MAPPER_STAGE, 'gdlp-to-hipaa-map.json'),
+                            TAG_DB => '{encryption_environment}_DB_MANAGER',
+                            TAG_SCHEMA => 'MASKING',
+                            RUN_COMMENT => '{selected_classification_database} DATABASE CLASSIFICATION',
+                            USE_DATABASES => '{selected_classification_database}',
+                            EXECUTE_SQL => FALSE,
+                            LOG_TABLE => 'CLASSIFICATION_DETAILS'
+                        );
+                        """
+                        session.sql(sql_command).collect()
+                        st.success("✅ ALTR MAPPER executed successfully!")
+                    except Exception as e:
+                        st.error(f"❌ Error executing ALTR MAPPER: {str(e)}")
+                        success = False
+
+                    if success:
+                        try:
+                            # Execute ALTR CLASSIFICATION DETAILS
+                            sql_command = f"CALL DEV_DB_MANAGER.MASKING.ALTR_CLASSIFICATION_DETAILS('{selected_classification_database}', '{selected_classification_schema}')"
+                            session.sql(sql_command).collect()
+                            st.success("✅ ALTR CLASSIFICATION DETAILS executed successfully!")
+                        except Exception as e:
+                            st.error(f"❌ Error executing ALTR CLASSIFICATION DETAILS: {str(e)}")
+                            success = False
+
+                # Section for handling transfers when classification owner is NOT ALTR
+                if selected_classification_owner != "ALTR":
+                    try:
+                        # Execute TRANSFER CLASSIFICATION DETAILS
+                        sql_command = f"CALL DEV_DB_MANAGER.MASKING.TRANSFER_CLASSIFICATION_DETAILS('{selected_classification_database}', '{selected_classification_schema}', '{selected_classification_owner}')"
+                        session.sql(sql_command).collect()
+                        st.success("✅ TRANSFER CLASSIFICATION DETAILS executed successfully!")
+                    except Exception as e:
+                        st.error(f"❌ Error executing TRANSFER CLASSIFICATION DETAILS: {str(e)}")
+                        success = False
+
+                # Insert Data Output Final
+                if success:
+                    try:
+                        # Execute INSERT DATA OUTPUT FINAL
+                        sql_command = f"""
+                        CALL {encryption_environment}_DB_MANAGER.MASKING.INSERT_DATA_OUTPUT_FINAL_ENCRYPTION(
+                            '{selected_masking_database}',  -- Use selected masking database
+                            '{selected_masking_schema}',    -- Use selected masking schema
+                            '{selected_bu_name}',
+                            '{selected_classification_owner}'
+                        )
+                        """
+                        session.sql(sql_command).collect()
+                        st.success("✅ INSERT DATA OUTPUT FINAL executed successfully!")
+                    except Exception as e:
+                        st.error(f"❌ Error executing INSERT DATA OUTPUT FINAL: {str(e)}")
+                        success = False
+
+                # Classification Generation
+                if success:
+                    try:
+                        # Execute CLASSIFICATION_GENERATION
+                        sql_command = f"CALL DEV_DB_MANAGER.MASKING.CLASSIFICATION_REPORT_V1('{selected_classification_database}', '{selected_classification_schema}', '{selected_classification_owner}');"
+                        session.sql(sql_command).collect()
+                        st.success("✅ CLASSIFICATION_GENERATION executed successfully!")
+                    except Exception as e:
+                        st.error(f"❌ Error executing CLASSIFICATION_GENERATION: {str(e)}")
+                        success = False
+
+
+                # Create Tables
+                if success:
+                    try:
+                        # Execute CREATE TABLES
+                        sql_command = f"""
+                        CALL {encryption_environment}_DB_MANAGER.ENCRYPTION.ENCRYPT_TABLES(
+                            '{selected_masking_database}',  -- Use selected masking database
+                            '{selected_masking_schema}',    -- Use selected masking schema
+                            '{selected_masking_database}_ENCRYPT',
+                            '{selected_masking_schema}'
+                        )
+                        """
+                        session.sql(sql_command).collect()
+                        st.success("✅ CREATE TABLES executed successfully!")
+                    except Exception as e:
+                        st.error(f"❌ Error executing CREATE TABLES: {str(e)}")
+                        success = False
+                # Insert a single audit record for the entire process
+                try:
+                    if success:
+                        audit_message = f"ENCRYPTION for {selected_masking_database}_ENCRYPT.{selected_masking_schema}"
+                        log_audit(audit_message, "Success", "encryption")
+                    else:
+                        audit_message = f"ENCRYPTION for {selected_masking_database}_ENCRYPT.{selected_masking_schema}"
+                        log_audit(audit_message, "Failure", "encryption")
+                except Exception as e:
+                    st.error(f"❌ Error logging audit: {str(e)}")
+
+                if success:
+                    st.success("✅ Completed all processes successfully!")
+                else:
+                    st.warning("Some steps failed. Please review the errors.")
+            else:
+                st.warning("Please ensure all selections are made before running the masking process.")
+
 elif app_mode == "📊 Classifications":
     session = get_active_session()
 
