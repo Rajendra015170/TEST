@@ -3,11 +3,11 @@ from snowflake.snowpark.context import get_active_session
 import pandas as pd
 import time
 
-# Custom CSS for styling with improved colors and responsiveness
+# Custom CSS for styling with enhanced colors and responsive design
 st.markdown(
     """
     <style>
-    /* Main background */
+    /* Main app background */
     .stApp {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     }
@@ -17,13 +17,14 @@ st.markdown(
         background: linear-gradient(180deg, #2c3e50 0%, #34495e 100%);
     }
     
-    /* Main content area */
+    /* Main content container */
     .main .block-container {
         background-color: rgba(255, 255, 255, 0.95);
-        border-radius: 15px;
+        border-radius: 20px;
         padding: 2rem;
         margin: 1rem;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+        backdrop-filter: blur(10px);
     }
 
     .font {
@@ -40,27 +41,29 @@ st.markdown(
     .sidebar .sidebar-content {
         background: linear-gradient(180deg, #34495e 0%, #2c3e50 100%);
         color: #ecf0f1;
-        border-radius: 10px;
+        border-radius: 15px;
     }
 
-    /* Button styling with modern gradient */
+    /* Modern button styling */
     .stButton button {
         background: linear-gradient(45deg, #3498db, #2980b9);
         color: white;
         padding: 12px 24px;
-        border-radius: 8px;
+        border-radius: 10px;
         font-size: 16px;
         font-weight: 600;
         margin: 8px 0;
         border: none;
         transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+        box-shadow: 0 8px 25px rgba(52, 152, 219, 0.3);
+        text-transform: uppercase;
+        letter-spacing: 1px;
     }
 
     .stButton button:hover {
         background: linear-gradient(45deg, #2980b9, #1a6b96);
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+        transform: translateY(-3px);
+        box-shadow: 0 12px 30px rgba(52, 152, 219, 0.4);
     }
 
     /* Enhanced headers */
@@ -85,32 +88,40 @@ st.markdown(
     /* Selectbox styling */
     .stSelectbox > div > div {
         background-color: #f8f9fa;
-        border-radius: 8px;
+        border-radius: 10px;
         border: 2px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+
+    .stSelectbox > div > div:focus-within {
+        border-color: #3498db;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
     }
 
     /* Success/Error message styling */
     .stAlert {
-        border-radius: 10px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        border-radius: 15px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        backdrop-filter: blur(10px);
     }
 
-    /* Data editor styling for better visibility */
-    .stDataFrame {
-        background-color: white;
-        border-radius: 10px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    }
-
-    /* Custom styling for data editor container */
-    .data-editor-container {
-        height: 600px !important;
-        width: 100% !important;
-        overflow: auto;
-        background-color: white;
-        border-radius: 10px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    /* Enhanced data editor container */
+    .classification-editor-container {
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        border-radius: 20px;
+        padding: 1.5rem;
         margin: 1rem 0;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        border: 1px solid #e9ecef;
+    }
+
+    /* Full-screen data editor */
+    .stDataFrame {
+        height: 70vh !important;
+        width: 100% !important;
+        background-color: white;
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
     }
 
     /* Auto-save indicator */
@@ -120,18 +131,96 @@ st.markdown(
         right: 20px;
         background: linear-gradient(45deg, #27ae60, #2ecc71);
         color: white;
-        padding: 8px 16px;
-        border-radius: 20px;
+        padding: 12px 20px;
+        border-radius: 25px;
         font-size: 14px;
         font-weight: 600;
-        box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
+        box-shadow: 0 8px 25px rgba(39, 174, 96, 0.3);
         z-index: 1000;
         opacity: 0;
-        transition: opacity 0.3s ease;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
     }
 
     .auto-save-indicator.show {
         opacity: 1;
+        transform: translateX(0);
+    }
+
+    /* Content cards */
+    .content-card {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        border-left: 4px solid #3498db;
+    }
+
+    /* Warning cards */
+    .warning-card {
+        background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        border-left: 4px solid #f39c12;
+    }
+
+    /* Info cards */
+    .info-card {
+        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        border-left: 4px solid #2196f3;
+    }
+
+    /* Success cards */
+    .success-card {
+        background: linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%);
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        border-left: 4px solid #4caf50;
+    }
+
+    /* Loading animation */
+    .loading-spinner {
+        border: 4px solid #f3f3f3;
+        border-radius: 50%;
+        border-top: 4px solid #3498db;
+        width: 20px;
+        height: 20px;
+        animation: spin 1s linear infinite;
+        display: inline-block;
+        margin-right: 10px;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: linear-gradient(45deg, #3498db, #2980b9);
+        border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(45deg, #2980b9, #1a6b96);
     }
     </style>
     """,
@@ -221,9 +310,10 @@ def log_audit(action, status, audit_type):
 if app_mode == "🏠 Home":
     st.markdown('<h1 class="font">🌟 WELCOME TO THE ZDC APP</h1>', unsafe_allow_html=True)
     st.markdown("""
-    <div style="background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); padding: 2rem; border-radius: 15px; margin: 1rem 0;">
-        <p style="font-size: 18px; color: #2c3e50;">This application enables users to perform data masking on Snowflake schemas, generate synthetic data for specified schemas, encryption and validate the applied masking.</p>
-        <p style="font-size: 16px; color: #34495e;">Please select a process from the sidebar to generate synthetic data, perform data masking, encryption or validate masking.</p>
+    <div class="content-card">
+        <h3>📋 Application Overview</h3>
+        <p>This application enables users to perform data masking on Snowflake schemas, generate synthetic data for specified schemas, encryption and validate the applied masking.</p>
+        <p>Please select a process from the sidebar to generate synthetic data, perform data masking, encryption or validate masking.</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -235,7 +325,8 @@ elif app_mode == "🔄 Synthetic Data Generation":
     if data_gen_mode == "Home":
         st.markdown('<h1 class="font">🔄 Synthetic Data Generation Process</h1>', unsafe_allow_html=True)
         st.markdown("""
-        <div style="background: linear-gradient(135deg, #e8f5e8 0%, #d4edda 100%); padding: 2rem; border-radius: 15px; margin: 1rem 0;">
+        <div class="content-card">
+            <h3>🎯 Purpose</h3>
             <p>This application is designed to generate synthetic data based on the selected source and target schemas, as well as the selected tables within your Snowflake environment.</p>
             <p>Users can choose a source database and schema from which to extract data and specify a target database and schema where the synthetic data will be stored. If users want to generate synthetic data for specific tables within a schema, they can select only those tables, and the system will generate data accordingly. You need to select either schema-level or table-level synthetic data generation and then proceed by clicking the appropriate button to start the process.</p>
             <p>The generated synthetic data maintains the structure of the source data without compromising any sensitive information.</p>
@@ -243,9 +334,9 @@ elif app_mode == "🔄 Synthetic Data Generation":
         """, unsafe_allow_html=True)
         
         st.markdown("""
-        <div style="background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%); padding: 1.5rem; border-radius: 10px; margin: 1rem 0;">
-            <h4 style="color: #856404;">📋 Requirements & Guidelines:</h4>
-            <ul style="color: #856404;">
+        <div class="warning-card">
+            <h4>📋 Requirements & Guidelines:</h4>
+            <ul>
                 <li>Each input table or view must have a minimum of 20 distinct rows.</li>
                 <li>Each input table or view is limited to a maximum of 100 columns.</li>
                 <li>The maximum row limit for each input table or view is 14 million rows.</li>
@@ -535,12 +626,16 @@ if app_mode == "🛡️ Snowflake Masking":
     # Home page for Snowflake Masking app
     if app_mode_masking == "Home":
         st.markdown('<h2 class="font">🛡️ Snowflake Masking App</h2>', unsafe_allow_html=True)
-        st.markdown('<p>This application is designed to assist you with data masking in Snowflake and classfication edit and submission. Please follow each step to mask Snowflake schemas.</p>', unsafe_allow_html=True)
+        st.markdown("""
+        <div class="content-card">
+            <p>This application is designed to assist you with data masking in Snowflake and classfication edit and submission. Please follow each step to mask Snowflake schemas.</p>
+        </div>
+        """, unsafe_allow_html=True)
 
         # Overview of processes
         st.subheader('🔄 Overview of Processes:')
         st.markdown("""
-        <div style="background: linear-gradient(135deg, #e8f4fd 0%, #c3d9ff 100%); padding: 2rem; border-radius: 15px; margin: 1rem 0;">
+        <div class="info-card">
             <strong>ALTR Mapper:</strong><br>
             In this step, we are inserting classification results into the `ALTR_DSAAS_DB.PUBLIC.CLASSIFICATION_DETAILS` table from the ALTR portal.
             <br><br>
@@ -1026,15 +1121,16 @@ elif app_mode == "🔐 Snowflake Encryption":
     # Home page for Snowflake Encryption app
     if app_mode_encryption == "Home":
         st.markdown('<h2 class="font">🔐 Snowflake Encryption App</h2>', unsafe_allow_html=True)
-        st.markdown(
-            '<p>This application is designed to assist you with data encryption in Snowflake. '
-            'Please follow each step to encrypt Snowflake schemas.</p>', unsafe_allow_html=True
-        )
+        st.markdown("""
+        <div class="content-card">
+            <p>This application is designed to assist you with data encryption in Snowflake. Please follow each step to encrypt Snowflake schemas.</p>
+        </div>
+        """, unsafe_allow_html=True)
 
        # Overview of processes
         st.subheader('🔄 Overview of Processes:')
         st.markdown("""
-        <div style="background: linear-gradient(135deg, #fff9e6 0%, #ffe066 100%); padding: 2rem; border-radius: 15px; margin: 1rem 0;">
+        <div class="info-card">
             <strong>ENCRYPTION:</strong><br>
             This application enables you to encrypt Snowflake schema tables. You need to select the database and schema you wish to encrypt. Additionally, you must choose the target environment where the encrypted tables will be deployed. 
             All encrypted databases will have a `_ENCRYPT` suffix, e.g., `DEV_DATALAKE_ENCRYPT`
@@ -1044,9 +1140,9 @@ elif app_mode == "🔐 Snowflake Encryption":
          # Limitations & Workarounds
         st.subheader('⚠️ Limitations & Workarounds:')
         st.markdown("""
-        <div style="background: linear-gradient(135deg, #ffe6e6 0%, #ffb3b3 100%); padding: 1.5rem; border-radius: 10px; margin: 1rem 0;">
+        <div class="warning-card">
             <strong>JOINS USING ENCRYPTED COLUMNS:</strong><br>
-            Tables can be joined using encrypted columns. Join columns must be encrypted using the same <strong>KEY</strong>, <strong>TWEAK</strong>, and <strong>ALPHABET</strong>.
+            Tables can be joined using encrypted columns.Join columns must be encrypted using the same <strong>KEY</strong>, <strong>TWEAK</strong>, and <strong>ALPHABET</strong>.
             <br><br>
             <strong>SINGLE/MULTIPOINT SEARCHES:</strong><br>
             Search values should be encrypted using the same <strong>KEY</strong>, <strong>TWEAK</strong>, and <strong>ALPHABET</strong>.
@@ -1188,7 +1284,7 @@ elif app_mode == "🔐 Snowflake Encryption":
                         session.sql(sql_command).collect()
                         st.success("✅ TRANSFER CLASSIFICATION DETAILS executed successfully!")
                     except Exception as e:
-                        st.error(f"❌ Error executing TRANSFER CLASSIFICATION DETAILS: {str(e)}")
+                        st.error(f"❌ Error executing TRANSFER CLASSIFICATION DETAILS: {str(e))")
                         success = False
 
                 # Insert Data Output Final
@@ -1256,36 +1352,40 @@ elif app_mode == "🔐 Snowflake Encryption":
             else:
                 st.warning("Please ensure all selections are made before running the masking process.")
 
-# Classifications with Auto-save and Enhanced UI
+# Enhanced Classifications with Auto-save and Full-screen UI
 if app_mode == "📊 Classifications":
     session = get_active_session()
 
     # Main UI
-    app_mode_classification = st.sidebar.radio("Select Process", ["Home", "📝 Classification Edit and Submission"], index=0)
+    app_mode_classification = st.sidebar.radio("Select Process", ["🏠 Home", "📝 Classification Edit and Submission"], index=0)
 
-    if app_mode_classification == "Home":
+    if app_mode_classification == "🏠 Home":
         st.markdown('<h2 class="font">📊 Classifications</h2>', unsafe_allow_html=True)
         st.markdown("""
-        <div style="background: linear-gradient(135deg, #e8f5e8 0%, #d4edda 100%); padding: 2rem; border-radius: 15px; margin: 1rem 0;">
-            <p style="font-size: 18px; color: #155724;">This page is designed to assist you with classification editing and submission in Snowflake.</p>
+        <div class="content-card">
+            <h3>🎯 Purpose</h3>
+            <p>This page is designed to assist you with classification editing and submission in Snowflake.</p>
         </div>
         """, unsafe_allow_html=True)
        
         st.subheader('🔄 Overview of Processes:')
         st.markdown("""
-        <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 1.5rem; border-radius: 10px; margin: 1rem 0;">
+        <div class="info-card">
             <p><strong>📊 Get Classification Report:</strong> Select a specific database and schema, then click "Get Classification Report" to review the classifications.</p>
             <p><strong>✏️ Edit Classifications:</strong> Review classifications based on the BU_APPROVAL_STATUS field. Select options such as APPROVED, MASKED, or NO MASKING NEEDED.</p>
-            <p><strong>💾 Auto-Save:</strong> Changes are automatically saved as you edit. No manual save required.</p>
+            <p><strong>💾 Auto-Save:</strong> Changes are automatically saved as you edit - no manual save required!</p>
             <p><strong>📤 Submit Report:</strong> After reviewing and editing, submit the final report to complete the process.</p>
         </div>
         """, unsafe_allow_html=True)
 
     elif app_mode_classification == "📝 Classification Edit and Submission":
-        # Session state initialization
-        for key in ["report_fetched", "edited_df", "submitted", "confirm_submission", "last_save_time"]:
+        # Session state initialization with auto-save tracking
+        for key in ["report_fetched", "edited_df", "submitted", "confirm_submission", "last_save_time", "database", "schema"]:
             if key not in st.session_state:
-                st.session_state[key] = False if key not in ["edited_df", "last_save_time"] else None
+                if key in ["edited_df", "last_save_time", "database", "schema"]:
+                    st.session_state[key] = None
+                else:
+                    st.session_state[key] = False
 
         # Helper functions
         def fetch_databases():
@@ -1318,7 +1418,7 @@ if app_mode == "📊 Classifications":
             return session.sql(query).collect()
 
         def auto_save_classification_report(df, database, schema):
-            """Auto-save function that runs in background"""
+            """Auto-save function that runs automatically when data changes"""
             session = get_active_session()
             try:
                 values = []
@@ -1521,7 +1621,7 @@ if app_mode == "📊 Classifications":
             rows = session.sql("SELECT DISTINCT BU_NAME FROM DEV_DB_MANAGER.MASKING.CONSUMER").collect()
             return [row[0] for row in rows]
 
-        # UI for classification report editing with enhanced styling
+        # Enhanced UI for classification report editing
         st.markdown('<h1 class="font">📊 Classification Report Editor</h1>', unsafe_allow_html=True)
 
         # Auto-save indicator
@@ -1530,10 +1630,11 @@ if app_mode == "📊 Classifications":
             if current_time - st.session_state.last_save_time < 3:  # Show for 3 seconds
                 st.markdown("""
                 <div class="auto-save-indicator show">
-                    💾 Auto-saved!
+                    💾 Auto-saved successfully!
                 </div>
                 """, unsafe_allow_html=True)
 
+        # Database and Schema selection
         col1, col2 = st.columns(2)
         with col1:
             database = st.selectbox("📊 Select Database", fetch_databases())
@@ -1541,14 +1642,21 @@ if app_mode == "📊 Classifications":
             if database:
                 schema = st.selectbox("📁 Select Schema", fetch_schemas(database))
 
+        # Store current selections
+        st.session_state.database = database
+        st.session_state.schema = schema
+
+        # Get Classification Report button
         if database and schema and st.button("📊 Get Classification Report", type="primary"):
             data = fetch_classification_report(database, schema)
             if data:
                 df = pd.DataFrame([row.as_dict() for row in data])
+                # Get current user
                 try:
                     current_user = get_active_session().sql("SELECT CURRENT_USER()").collect()[0][0]
                 except:
                     current_user = get_active_session().get_current_user()
+                # Replace BU_ASSIGNEE with current user
                 df['BU_ASSIGNEE'] = current_user
                 st.session_state.edited_df = df
                 st.session_state.report_fetched = True
@@ -1556,12 +1664,14 @@ if app_mode == "📊 Classifications":
             else:
                 st.warning("⚠️ No data found for the selected database and schema.")
 
-        # Enhanced Data Editor with Auto-save
+        # Enhanced Editable DataFrame with Auto-save
         if st.session_state.report_fetched and st.session_state.edited_df is not None:
             st.markdown("### 📝 Edit Classification Report")
+            
+            # Auto-save notification
             st.markdown("""
-            <div style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); padding: 1rem; border-radius: 10px; margin: 1rem 0;">
-                <p style="margin: 0; color: #0d47a1;"><strong>💡 Note:</strong> Changes are automatically saved as you edit. No manual save required!</p>
+            <div class="info-card">
+                <p><strong>💾 Auto-Save Enabled:</strong> Your changes are automatically saved as you edit - no manual save required!</p>
             </div>
             """, unsafe_allow_html=True)
 
@@ -1572,35 +1682,44 @@ if app_mode == "📊 Classifications":
             st.session_state.edited_df['INFOSEC_APPROVAL_STATUS'] = st.session_state.edited_df['INFOSEC_APPROVAL_STATUS'].astype('category')
             st.session_state.edited_df['INFOSEC_APPROVAL_STATUS'] = st.session_state.edited_df['INFOSEC_APPROVAL_STATUS'].cat.set_categories(['MASK', 'APPROVED', 'NO MASKING NEEDED'])
 
-            # Enhanced data editor with custom styling
-            st.markdown('<div class="data-editor-container">', unsafe_allow_html=True)
-            edited_df = st.data_editor(
-                st.session_state.edited_df, 
-                num_rows="dynamic", 
-                use_container_width=True,
-                height=600,  # Increased height
-                key="classification_editor"
-            )
+            # Full-screen data editor with auto-save
+            st.markdown('<div class="classification-editor-container">', unsafe_allow_html=True)
+            
+            # Use a container for better control
+            with st.container():
+                edited_df = st.data_editor(
+                    st.session_state.edited_df,
+                    num_rows="dynamic",
+                    use_container_width=True,
+                    height=600,  # Fixed height for better UX
+                    key="classification_data_editor"
+                )
+            
             st.markdown('</div>', unsafe_allow_html=True)
 
-            # Auto-save when data changes
+            # Auto-save logic: detect changes and save automatically
             if not edited_df.equals(st.session_state.edited_df):
-                auto_save_classification_report(edited_df, database, schema)
-                st.session_state.edited_df = edited_df
+                success = auto_save_classification_report(edited_df, st.session_state.database, st.session_state.schema)
+                if success:
+                    st.session_state.edited_df = edited_df
+                    # Show temporary success message
+                    st.rerun()
 
+            # Submit Classifications Section
             st.markdown("### 📤 Submit Classifications")
             st.markdown("""
-            <div style="background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%); padding: 1.5rem; border-radius: 10px; margin: 1rem 0;">
-                <p style="margin: 0; color: #4a148c;"><strong>⚠️ Important:</strong> Review all classifications before final submission. This action will process the report for production use.</p>
+            <div class="warning-card">
+                <p><strong>⚠️ Important:</strong> Review all classifications before final submission. This action will process your edited data for production use.</p>
             </div>
             """, unsafe_allow_html=True)
             
-            col1, col2 = st.columns([2, 1])
+            col1, col2 = st.columns([3, 1])
             with col1:
                 bu_name = st.selectbox("🏢 Select BU Name", get_bu_names())
             with col2:
                 if bu_name and st.button("📤 Submit Classifications", type="primary"):
-                    success = insert_raw_classification_details(database, schema, bu_name)
+                    success = insert_raw_classification_details(st.session_state.database, st.session_state.schema, bu_name)
                     if success:
                         st.success("✅ Classification details submitted successfully!")
                         st.balloons()
+                        time.sleep(2)  # Show success message for 2 seconds
