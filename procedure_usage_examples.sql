@@ -8,14 +8,34 @@
 --     "SRC_SCHEMA_NAME" VARCHAR, 
 --     "TGT_DATABASE_NAME" VARCHAR, 
 --     "TGT_SCHEMA_NAME" VARCHAR,
---     "TABLE_LIST" VARCHAR DEFAULT NULL
+--     "TABLE_LIST_TABLE" VARCHAR DEFAULT NULL  -- Table containing list of tables to process
 -- )
+
+-- ========================================================================
+-- SETUP: CREATE TABLE LIST TABLE (One-time setup)
+-- ========================================================================
+
+-- Create a table to store the list of tables you want to encrypt
+CREATE OR REPLACE TABLE DEV_DB_MANAGER.ENCRYPTION.TABLES_TO_ENCRYPT (
+    TABLE_NAME VARCHAR(255) NOT NULL,
+    PRIORITY NUMBER DEFAULT 1,
+    DESCRIPTION VARCHAR(500),
+    CREATED_DATE TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
+);
+
+-- Insert tables you want to encrypt
+INSERT INTO DEV_DB_MANAGER.ENCRYPTION.TABLES_TO_ENCRYPT (TABLE_NAME, DESCRIPTION) VALUES
+('CUSTOMERS', 'Customer personal information'),
+('ORDERS', 'Order details with PII'),
+('PAYMENTS', 'Payment information'),
+('USER_PROFILES', 'User profile data'),
+('EMPLOYEE_DATA', 'Employee sensitive data');
 
 -- ========================================================================
 -- USAGE EXAMPLES
 -- ========================================================================
 
--- Example 1: Encrypt ALL tables in a schema
+-- Example 1: Encrypt ALL tables in a schema (existing behavior)
 CALL DEV_DB_MANAGER.ENCRYPTION.ENCRYPT_TABLES(
     'SOURCE_DB', 
     'PUBLIC', 
@@ -23,22 +43,28 @@ CALL DEV_DB_MANAGER.ENCRYPTION.ENCRYPT_TABLES(
     'ENCRYPTED_SCHEMA'
 );
 
--- Example 2: Encrypt SPECIFIC tables only
+-- Example 2: Encrypt SPECIFIC tables from your table list
 CALL DEV_DB_MANAGER.ENCRYPTION.ENCRYPT_TABLES(
     'SOURCE_DB', 
     'PUBLIC', 
     'TARGET_DB', 
     'ENCRYPTED_SCHEMA',
-    'CUSTOMERS,ORDERS,PAYMENTS'
+    'DEV_DB_MANAGER.ENCRYPTION.TABLES_TO_ENCRYPT'
 );
 
--- Example 3: Encrypt a single table
+-- Example 3: Use a different table list (maybe for different environments)
+-- First create environment-specific table
+CREATE OR REPLACE TABLE DEV_DB_MANAGER.ENCRYPTION.PROD_TABLES_TO_ENCRYPT AS
+SELECT * FROM DEV_DB_MANAGER.ENCRYPTION.TABLES_TO_ENCRYPT 
+WHERE TABLE_NAME IN ('CUSTOMERS', 'PAYMENTS');
+
+-- Then use it in the procedure
 CALL DEV_DB_MANAGER.ENCRYPTION.ENCRYPT_TABLES(
     'SOURCE_DB', 
     'PUBLIC', 
     'TARGET_DB', 
     'ENCRYPTED_SCHEMA',
-    'SENSITIVE_DATA_TABLE'
+    'DEV_DB_MANAGER.ENCRYPTION.PROD_TABLES_TO_ENCRYPT'
 );
 
 -- ========================================================================
@@ -79,10 +105,10 @@ WHERE STATUS = 'FAILED';
    - Global exception handler for procedure-level failures
    - Comprehensive status tracking
 
-2. NEW TABLE_LIST PARAMETER:
-   - Filter specific tables for encryption
-   - Comma-separated list of table names
-   - NULL or empty string processes all tables
+2. NEW TABLE_LIST_TABLE PARAMETER:
+   - Filter specific tables for encryption by reading from a database table
+   - Pass table name containing list of tables to process
+   - NULL or empty string processes all tables (existing logic)
    - Maintains backward compatibility
 
 3. PERFORMANCE OPTIMIZATIONS:
@@ -130,6 +156,49 @@ SOLUTION: The procedure now handles this automatically with enhanced regex
 ISSUE: Memory issues with large tables
 SOLUTION: Process one table at a time using TABLE_LIST parameter
 */
+
+-- ========================================================================
+-- TABLE LIST MANAGEMENT
+-- ========================================================================
+
+-- View current table list
+SELECT * FROM DEV_DB_MANAGER.ENCRYPTION.TABLES_TO_ENCRYPT ORDER BY TABLE_NAME;
+
+-- Add a new table to encrypt
+INSERT INTO DEV_DB_MANAGER.ENCRYPTION.TABLES_TO_ENCRYPT (TABLE_NAME, DESCRIPTION) 
+VALUES ('NEW_SENSITIVE_TABLE', 'Newly identified sensitive table');
+
+-- Remove a table from encryption list
+DELETE FROM DEV_DB_MANAGER.ENCRYPTION.TABLES_TO_ENCRYPT 
+WHERE TABLE_NAME = 'OLD_TABLE';
+
+-- Create priority-based table list (encrypt high priority tables first)
+CREATE OR REPLACE TABLE DEV_DB_MANAGER.ENCRYPTION.HIGH_PRIORITY_TABLES AS
+SELECT TABLE_NAME FROM DEV_DB_MANAGER.ENCRYPTION.TABLES_TO_ENCRYPT 
+WHERE PRIORITY >= 5
+ORDER BY PRIORITY DESC;
+
+-- Use priority-based table list
+CALL DEV_DB_MANAGER.ENCRYPTION.ENCRYPT_TABLES(
+    'SOURCE_DB', 
+    'PUBLIC', 
+    'TARGET_DB', 
+    'ENCRYPTED_SCHEMA',
+    'DEV_DB_MANAGER.ENCRYPTION.HIGH_PRIORITY_TABLES'
+);
+
+-- Create temporary table list for testing
+CREATE OR REPLACE TEMPORARY TABLE TEMP_TEST_TABLES (TABLE_NAME VARCHAR);
+INSERT INTO TEMP_TEST_TABLES VALUES ('TEST_TABLE_1'), ('TEST_TABLE_2');
+
+-- Use temporary table list
+CALL DEV_DB_MANAGER.ENCRYPTION.ENCRYPT_TABLES(
+    'SOURCE_DB', 
+    'PUBLIC', 
+    'TARGET_DB', 
+    'ENCRYPTED_SCHEMA',
+    'TEMP_TEST_TABLES'
+);
 
 -- ========================================================================
 -- VALIDATION QUERIES

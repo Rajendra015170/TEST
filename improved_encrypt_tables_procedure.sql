@@ -3,7 +3,7 @@ CREATE OR REPLACE PROCEDURE DEV_DB_MANAGER.ENCRYPTION.ENCRYPT_TABLES(
     "SRC_SCHEMA_NAME" VARCHAR, 
     "TGT_DATABASE_NAME" VARCHAR, 
     "TGT_SCHEMA_NAME" VARCHAR,
-    "TABLE_LIST" VARCHAR DEFAULT NULL  -- New parameter: comma-separated table names or NULL for all tables
+    "TABLE_LIST_TABLE" VARCHAR DEFAULT NULL  -- New parameter: table name containing list of tables to process or NULL for all tables
 )
 RETURNS VARCHAR
 LANGUAGE SQL
@@ -48,11 +48,18 @@ BEGIN
     INSERT INTO IDENTIFIER(:status_table) (TABLE_NAME, STATUS) 
     VALUES (''PROCEDURE_START'', ''INITIALIZED'');
 
-    -- Build table filter condition if TABLE_LIST is provided
-    IF (TABLE_LIST IS NOT NULL AND TRIM(TABLE_LIST) != '''') THEN
-        -- Convert comma-separated list to SQL IN clause
-        table_filter_condition := '' AND tbl.TABLE_NAME IN ('''''' || 
-            REPLACE(TRIM(TABLE_LIST), '','', '''''', '''''') || '''''')'';
+    -- Build table filter condition if TABLE_LIST_TABLE is provided
+    IF (TABLE_LIST_TABLE IS NOT NULL AND TRIM(TABLE_LIST_TABLE) != '''') THEN
+        -- Build IN clause from the table containing list of tables
+        LET table_list_query VARCHAR := ''SELECT LISTAGG('''''''''' || TABLE_NAME || '''''''', '''','''') FROM '' || TABLE_LIST_TABLE;
+        LET table_names_list VARCHAR;
+        
+        -- Execute query to get comma-separated table names
+        EXECUTE IMMEDIATE table_list_query INTO table_names_list;
+        
+        IF (table_names_list IS NOT NULL AND TRIM(table_names_list) != '''') THEN
+            table_filter_condition := '' AND tbl.TABLE_NAME IN ('' || table_names_list || '')'';
+        END IF;
     END IF;
 
     -- Drop and create temporary table with enhanced logic
