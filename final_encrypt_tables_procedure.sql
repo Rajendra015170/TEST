@@ -3,7 +3,7 @@ CREATE OR REPLACE PROCEDURE DEV_DB_MANAGER.ENCRYPTION.ENCRYPT_TABLES(
     "SRC_SCHEMA_NAME" VARCHAR, 
     "TGT_DATABASE_NAME" VARCHAR, 
     "TGT_SCHEMA_NAME" VARCHAR,
-    "TABLE_LIST_TABLE" VARCHAR DEFAULT NULL  -- New parameter: table name containing list of tables to process or NULL for all tables
+    "TABLE_LIST_TABLE" VARCHAR DEFAULT NULL
 )
 RETURNS VARCHAR
 LANGUAGE SQL
@@ -66,8 +66,7 @@ BEGIN
     DROP TABLE IF EXISTS IDENTIFIER(:temp_table); 
     
     -- Build the dynamic SQL for temp table creation
-    LET temp_table_sql VARCHAR := ''
-    CREATE OR REPLACE TEMPORARY TABLE '' || temp_table || '' AS
+    LET temp_table_sql VARCHAR := ''CREATE OR REPLACE TEMPORARY TABLE '' || temp_table || '' AS
     WITH GET_DISTINCT_COLS AS (
         SELECT "DATABASE", "SCHEMA", "TABLE", "COLUMN",
                "MAPPED_TAG",
@@ -86,7 +85,7 @@ BEGIN
         INNER JOIN '' || inf_columns || '' AS col
            ON tbl.TABLE_NAME = col.TABLE_NAME 
           AND tbl.TABLE_SCHEMA = col.TABLE_SCHEMA
-        WHERE tbl.TABLE_SCHEMA = '''''' || src_schema_name || ''''''
+        WHERE tbl.TABLE_SCHEMA = '''''' || SRC_SCHEMA_NAME || ''''''
             AND tbl.TABLE_NAME NOT LIKE ''''%_BKP%'''' 
             AND tbl.TABLE_NAME NOT LIKE ''''%_BACKUP%'''' 
             AND tbl.TABLE_NAME NOT LIKE ''''%_BCKUP%''''
@@ -122,7 +121,7 @@ BEGIN
             LET sql_stmt VARCHAR := '''';
             LET dcrpt_sql_stmt VARCHAR := '''';
             LET set_tag_stmt VARCHAR := '''';
-            LET set_tag_stmt_head VARCHAR := '' ALTER TABLE '' || :tgt_database_name || ''.'' || :tgt_schema_name || ''.'' || :tbl_name || '' MODIFY COLUMN '';
+            LET set_tag_stmt_head VARCHAR := '' ALTER TABLE '' || TGT_DATABASE_NAME || ''.'' || TGT_SCHEMA_NAME || ''.'' || tbl_name || '' MODIFY COLUMN '';
             LET c1 CURSOR FOR SELECT * FROM IDENTIFIER(?) WHERE TABLE_NAME = ? ORDER BY TABLE_NAME, ORDINAL_POSITION ASC;
             
             -- Log table processing start
@@ -146,10 +145,10 @@ BEGIN
             -- Process table based on PII classification
             IF (encr_tbl_tag_cnt = 0) THEN
                 -- No PII columns - simple clone
-                sql_stmt := ''CREATE OR REPLACE TABLE '' || :tgt_database_name || ''.'' || 
-                           :tgt_schema_name || ''.'' || :tbl_name || 
-                           '' CLONE '' || :src_database_name || ''.'' || 
-                           :src_schema_name || ''.'' || :tbl_name || '';'';
+                sql_stmt := ''CREATE OR REPLACE TABLE '' || TGT_DATABASE_NAME || ''.'' || 
+                           TGT_SCHEMA_NAME || ''.'' || tbl_name || 
+                           '' CLONE '' || SRC_DATABASE_NAME || ''.'' || 
+                           SRC_SCHEMA_NAME || ''.'' || tbl_name || '';'';
                            
                 EXECUTE IMMEDIATE sql_stmt;
                 
@@ -185,9 +184,9 @@ BEGIN
                                    record.COLUMN_NAME || '','';
                         
                         set_tag_stmt := set_tag_stmt || record.COLUMN_NAME || 
-                                       '' SET TAG '' || :tag_db || record.MAPPED_TAG || 
+                                       '' SET TAG '' || tag_db || record.MAPPED_TAG || 
                                        ''='''''''''' || '','' ;
-                        dcrpt_sql_stmt := dcrpt_sql_stmt || '' '' || :trim_pad || 
+                        dcrpt_sql_stmt := dcrpt_sql_stmt || '' '' || trim_pad || 
                                          record.COLUMN_NAME || '','';
                     END IF;
                 END FOR;
@@ -196,11 +195,11 @@ BEGIN
                 
                 -- Build final SQL statements
                 sql_stmt := LEFT(sql_stmt, LENGTH(sql_stmt) - 1) || 
-                           '' FROM '' || :src_database_name || ''.'' || 
-                           :src_schema_name || ''.'' || :tbl_name;
+                           '' FROM '' || SRC_DATABASE_NAME || ''.'' || 
+                           SRC_SCHEMA_NAME || ''.'' || tbl_name;
                            
-                qry_head := ''CREATE OR REPLACE TABLE '' || :tgt_database_name || 
-                           ''.'' || :tgt_schema_name || ''.'' || :tbl_name || 
+                qry_head := ''CREATE OR REPLACE TABLE '' || TGT_DATABASE_NAME || 
+                           ''.'' || TGT_SCHEMA_NAME || ''.'' || tbl_name || 
                            '' AS SELECT '';
                 
                 -- Execute encryption
@@ -234,15 +233,15 @@ BEGIN
     -- Final status update
     INSERT INTO IDENTIFIER(:status_table) (TABLE_NAME, STATUS, ERROR_MESSAGE) 
     VALUES (''PROCEDURE_END'', ''COMPLETED'', 
-            ''Total: '' || :total_tbl_processed_cnt || 
-            '', Successful: '' || :successful_tbl_cnt || 
-            '', Failed: '' || :failed_tbl_cnt);
+            ''Total: '' || total_tbl_processed_cnt || 
+            '', Successful: '' || successful_tbl_cnt || 
+            '', Failed: '' || failed_tbl_cnt);
     
     -- Return comprehensive summary
-    RETURN ''Encryption Process Summary - Total Tables Processed: '' || :total_tbl_processed_cnt || 
-           '', Successfully Encrypted: '' || :successful_tbl_cnt || 
-           '', Failed: '' || :failed_tbl_cnt || 
-           ''. Check status table '' || :status_table || '' for detailed results.'';
+    RETURN ''Encryption Process Summary - Total Tables Processed: '' || total_tbl_processed_cnt || 
+           '', Successfully Encrypted: '' || successful_tbl_cnt || 
+           '', Failed: '' || failed_tbl_cnt || 
+           ''. Check status table '' || status_table || '' for detailed results.'';
 
 EXCEPTION
     WHEN OTHER THEN
@@ -251,11 +250,11 @@ EXCEPTION
         
         -- Log global error
         INSERT INTO IDENTIFIER(:status_table) (TABLE_NAME, STATUS, ERROR_MESSAGE) 
-        VALUES (:current_table_processing, ''PROCEDURE_FAILED'', :error_msg);
+        VALUES (current_table_processing, ''PROCEDURE_FAILED'', error_msg);
         
         -- Return error information
-        RETURN ''Procedure failed during processing of table: '' || :current_table_processing || 
-               ''. Error: '' || :error_msg || 
-               ''. Check status table '' || :status_table || '' for details.'';
+        RETURN ''Procedure failed during processing of table: '' || current_table_processing || 
+               ''. Error: '' || error_msg || 
+               ''. Check status table '' || status_table || '' for details.'';
 END;
 ';
